@@ -1,0 +1,5 @@
+- hosts: osd_nodes
+  vars_files:
+    - "vars/ceph.yml"
+  roles:
+    - role: osd

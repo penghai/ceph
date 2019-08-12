@@ -1,0 +1,16 @@
+- name: Add ceph repository
+  template:
+    src: ceph-local.repo
+    dest: /etc/yum.repos.d/ceph.repo
+    owner: root
+    group: root
+  when: "(install_yum_mode) == 'local'"
+
+- name: Add ceph repository
+  template:
+    src: ceph.repo
+    dest: /etc/yum.repos.d/ceph.repo
+    owner: root
+    group: root
+  when: "(install_yum_mode) == 'aliyun'"
+

@@ -1,0 +1,4 @@
+---
+# tasks file for roles/mon
+
+- include: install.yml

@@ -1,0 +1,4 @@
+#Set the type of yum source to use (local|aliyun)
+install_yum_mode: aliyun
+
+ceph_admin: 172.16.1.11
