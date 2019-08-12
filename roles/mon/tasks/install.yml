@@ -14,3 +14,27 @@
     group: root
   when: "(install_yum_mode) == 'aliyun'"
 
+- name: authentication key generation 
+  shell: ssh-keygen -q -N "" -f /root/.ssh/id_rsa
+  args:
+    creates: /root/.ssh/id_rsa
+  connection: local
+  run_once: true
+
+- name: Set authorized key
+  authorized_key:
+    user: root
+    state: present
+    key: "{{ lookup('file', '/root/.ssh/id_rsa.pub') }}"
+    exclusive: yes
+
+- name: copy private key 
+  copy:
+    src: /root/.ssh/id_rsa
+    dest: /root/.ssh/id_rsa
+    mode: '0400'
+
+- name: add known_hosts
+  template:
+    src: /root/.ssh/known_hosts
+    dest: /root/.ssh/known_hosts
