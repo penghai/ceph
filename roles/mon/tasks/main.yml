@@ -1,4 +1,6 @@
 ---
 # tasks file for roles/mon
 
-- include: install.yml
+#- include: install.yml
+
+- include: init_config.yml

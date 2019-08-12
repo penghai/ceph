@@ -1,0 +1,14 @@
+- name: Create /root/ceph_cluster directory
+  file:
+    path: /root/ceph_cluster
+    state: directory
+  when: ansible_hostname == (ceph_admin)
+
+- name: 
+  shell: ceph-deploy new --no-ssh-copykey --cluster-network {{cluster_network}} --public-network {{public_network}} {{mons}}
+  when: ansible_hostname == (ceph_admin) 
+  args:
+    chdir: /root/ceph_cluster
+    creates:
+      - ceph.mon.keyring
+      - ceph.conf
