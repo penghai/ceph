@@ -4,3 +4,5 @@
 - include: install.yml
 
 - include: init_config.yml
+
+- include: config_mgr.yml

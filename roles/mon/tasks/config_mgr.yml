@@ -1,0 +1,6 @@
+- name: Ceph MGR daemon management
+  shell: ceph-deploy mgr create {{mons}}
+  args:
+    chdir: "{{ceph_workdir}}"
+    creates: /var/lib/ceph/bootstrap-mgr/ceph.keyring
+  when: ansible_hostname == (ceph_admin)

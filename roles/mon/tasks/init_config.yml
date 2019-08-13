@@ -69,7 +69,7 @@
   shell: ceph-deploy mon create {{mons}}
   args:
     chdir: "{{ceph_workdir}}"
-    creates: ceph.conf
+    creates: /etc/ceph/ceph.conf
   when: ansible_hostname == (ceph_admin)
 
 - name: cluster configuration and the admin keyring on the remote nodes
