@@ -1,14 +1,80 @@
 - name: Create /root/ceph_cluster directory
   file:
-    path: /root/ceph_cluster
+    path: "{{ceph_workdir}}"
     state: directory
   when: ansible_hostname == (ceph_admin)
 
-- name: 
-  shell: ceph-deploy new --no-ssh-copykey --cluster-network {{cluster_network}} --public-network {{public_network}} {{mons}}
-  when: ansible_hostname == (ceph_admin) 
+- name: start ceph-mon
+  service:
+    name: ceph-mon@{{ansible_hostname}}
+    state: started
+  ignore_errors: yes
+
+- name: Determine if the key file exists 
+  shell: ls {{ceph_workdir}}/{ceph.bootstrap-mds.keyring,ceph.bootstrap-mgr.keyring,ceph.bootstrap-osd.keyring,ceph.bootstrap-rgw.keyring,ceph.client.admin.keyring,ceph.mon.keyring}
+  ignore_errors: yes
+  register: keyfile
+  when: ansible_hostname == (ceph_admin)
+
+- name: gather monitor keys
+  shell: ceph-deploy gatherkeys {{mons}}
   args:
-    chdir: /root/ceph_cluster
-    creates:
-      - ceph.mon.keyring
-      - ceph.conf
+    chdir: "{{ceph_workdir}}"
+  ignore_errors: yes
+  register: getkey
+  when: ansible_hostname == (ceph_admin) and keyfile.rc != 0 
+
+- name: Determine if the cluster init file exists 
+  shell: ls {{ceph_workdir}}/{ceph.mon.keyring,ceph.conf}
+  ignore_errors: yes
+  register: suchfile 
+  when: ansible_hostname == (ceph_admin)
+
+- name: Create A new Ceph cluster
+  shell: ceph-deploy new --no-ssh-copykey --cluster-network {{cluster_network}} --public-network {{public_network}} {{mons}}
+  args:
+    chdir: "{{ceph_workdir}}"
+    creates: /etc/ceph/ceph.conf
+  when: ansible_hostname == (ceph_admin) and suchfile.rc != 0 
+
+- name: Determine if the cluster file exists 
+  shell: ls {{ceph_workdir}}/ceph.conf
+  ignore_errors: yes
+  register: configfile
+  when: ansible_hostname == (ceph_admin)
+
+- name: pull ceph_cluster config file
+  shell: ceph-deploy config pull {{mons}}
+  args:
+    chdir: "{{ceph_workdir}}"
+  when: ansible_hostname == (ceph_admin) and configfile.rc != 0 
+
+- name: config ceph.conf file
+  blockinfile:
+    path: "{{ceph_workdir}}/ceph.conf"
+    block: |
+      osd_pool_default_min_size = 2
+      osd_pool_default_size = 3
+    state: present
+  when: ansible_hostname == (ceph_admin)
+  register: changefile
+
+- name: Deploy config file
+  shell: ceph-deploy --overwrite-conf config push {{mons}} 
+  args:
+    chdir: "{{ceph_workdir}}"
+  when: ansible_hostname == (ceph_admin) and changefile.changed 
+  
+- name: Deploy the monitors to the monitor hosts
+  shell: ceph-deploy mon create {{mons}}
+  args:
+    chdir: "{{ceph_workdir}}"
+    creates: ceph.conf
+  when: ansible_hostname == (ceph_admin)
+
+- name: cluster configuration and the admin keyring on the remote nodes
+  shell: ceph-deploy admin {{mons}}
+  args:
+    chdir: "{{ceph_workdir}}"
+    creates: /etc/ceph/ceph.client.admin.keyring
+  when: ansible_hostname == (ceph_admin)
