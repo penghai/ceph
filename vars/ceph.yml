@@ -6,6 +6,8 @@ ceph_workdir: /root/ceph_cluster
 cluster_network: 192.168.68.0/24
 public_network: 172.16.1.0/24
 mons: ph-test01 ph-test02 ph-test03
+osdnode: [ph-test01,ph-test02,ph-test03]
+disks: [/dev/sdb,/dev/sdc]
 mgr_port: 8443
 mgr_https: true
 mgr_user: admin
