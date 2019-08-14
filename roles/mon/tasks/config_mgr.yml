@@ -1,6 +1,42 @@
+- name: ceph cluster status 
+  shell: ceph health
+  ignore_errors: yes
+  register: ceph_status 
+
 - name: Ceph MGR daemon management
   shell: ceph-deploy mgr create {{mons}}
   args:
     chdir: "{{ceph_workdir}}"
     creates: /var/lib/ceph/bootstrap-mgr/ceph.keyring
-  when: ansible_hostname == (ceph_admin)
+  when: ansible_hostname == (ceph_admin) and ceph_status.stdout == "HEALTH_OK"
+  
+- name: enabled the Ceph Dashboard
+  shell: ceph mgr module enable dashboard
+  when: ceph_status.stdout == "HEALTH_OK"
+  run_once: true
+
+- name: install a self-signed certificate 
+  shell: ceph dashboard create-self-signed-cert
+  run_once: true
+
+- name: "setting SSL configuration value: {{mgr_https}}"
+  shell: ceph config set mgr mgr/dashboard/ssl {{mgr_https}}
+  run_once: true
+
+- name: set mgr IP address  
+  shell: ceph config set mgr mgr/dashboard/{{ansible_hostname}}/server_addr {{ansible_ssh_host}}
+
+- name: set mgr port
+  shell: ceph config set mgr mgr/dashboard/{{ansible_hostname}}/server_port {{mgr_port}}
+
+- name: set mgr ssl port
+  shell: ceph config set mgr mgr/dashboard/{{ansible_hostname}}/ssl_server_port {{mgr_port}}
+  when: mgr_https == true
+  
+- name: add mgr user
+  shell: ceph dashboard set-login-credentials {{mgr_user}} {{mgr_password}}
+  run_once: true
+
+- name: restart mgr
+  shell: ceph mgr module disable dashboard && ceph mgr module enable dashboard
+  run_once: true

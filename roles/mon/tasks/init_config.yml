@@ -13,7 +13,7 @@
 - name: Determine if the key file exists 
   shell: ls {{ceph_workdir}}/{ceph.bootstrap-mds.keyring,ceph.bootstrap-mgr.keyring,ceph.bootstrap-osd.keyring,ceph.bootstrap-rgw.keyring,ceph.client.admin.keyring,ceph.mon.keyring}
   ignore_errors: yes
-  register: keyfile
+  register: monkeyfile
   when: ansible_hostname == (ceph_admin)
 
 - name: gather monitor keys
@@ -21,13 +21,12 @@
   args:
     chdir: "{{ceph_workdir}}"
   ignore_errors: yes
-  register: getkey
-  when: ansible_hostname == (ceph_admin) and keyfile.rc != 0 
+  when: ansible_hostname == (ceph_admin) and monkeyfile.rc != 0 
 
 - name: Determine if the cluster init file exists 
   shell: ls {{ceph_workdir}}/{ceph.mon.keyring,ceph.conf}
   ignore_errors: yes
-  register: suchfile 
+  register: initfile 
   when: ansible_hostname == (ceph_admin)
 
 - name: Create A new Ceph cluster
@@ -35,19 +34,14 @@
   args:
     chdir: "{{ceph_workdir}}"
     creates: /etc/ceph/ceph.conf
-  when: ansible_hostname == (ceph_admin) and suchfile.rc != 0 
-
-- name: Determine if the cluster file exists 
-  shell: ls {{ceph_workdir}}/ceph.conf
-  ignore_errors: yes
-  register: configfile
-  when: ansible_hostname == (ceph_admin)
+  when: ansible_hostname == (ceph_admin) and initfile.rc != 0 
 
 - name: pull ceph_cluster config file
   shell: ceph-deploy config pull {{mons}}
   args:
     chdir: "{{ceph_workdir}}"
-  when: ansible_hostname == (ceph_admin) and configfile.rc != 0 
+    creates: ceph.conf
+  when: ansible_hostname == (ceph_admin)
 
 - name: config ceph.conf file
   blockinfile:
@@ -69,12 +63,27 @@
   shell: ceph-deploy mon create {{mons}}
   args:
     chdir: "{{ceph_workdir}}"
-    creates: /etc/ceph/ceph.conf
+    creates: /var/lib/ceph/mon/ceph-{{ansible_hostname}}/keyring
+  register: monstat
   when: ansible_hostname == (ceph_admin)
 
-- name: cluster configuration and the admin keyring on the remote nodes
+- name: wait mon install
+  pause:
+    seconds: 15
+  when: monstat.changed
+
+- name: gather monitor keys
+  shell: ceph-deploy gatherkeys {{mons}}
+  args:
+    chdir: "{{ceph_workdir}}"
+    creates: ceph.client.admin.keyring
+  ignore_errors: yes
+  register: getclientkey
+  when: ansible_hostname == (ceph_admin) and monstat.rc == 0 
+
+- name: cluster configuration and admin keyring on to nodes
   shell: ceph-deploy admin {{mons}}
   args:
     chdir: "{{ceph_workdir}}"
     creates: /etc/ceph/ceph.client.admin.keyring
-  when: ansible_hostname == (ceph_admin)
+  when: ansible_hostname == (ceph_admin) and getclientkey.rc == 0
