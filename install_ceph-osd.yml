@@ -1,4 +1,5 @@
 - hosts: osd_nodes
+  order: sorted
   vars_files:
     - "vars/ceph.yml"
   roles:
