@@ -3,36 +3,56 @@
   ignore_errors: yes
   register: ceph_cluster_status
 
-- name: ceph list disks
-  shell: ceph-deploy disk list {{item}}
-  args:
-    chdir: "{{ceph_workdir}}"
+- name: copy osdkey to tmp
+  shell: scp {{ceph_admin}}:/{{ceph_workdir}}/ceph.bootstrap-osd.keyring  /tmp/ceph.keyring
+  when: ceph_cluster_status.stdout == "HEALTH_OK"
+
+- name: disk stat
+  shell: fdisk -l {{item}}
   with_items:
-    - "{{osdnode}}"
-  when: ansible_hostname == (ceph_admin) and ceph_cluster_status.stdout == "HEALTH_OK"
-
-- name: preparation disk
-  shell: ceph-deploy disk zap {{item[0]}} {{item[1]}}
-  args:
-    chdir: "{{ceph_workdir}}"
-    creates: /var/lib/ceph/bootstrap-osd/ceph.keyring
-  with_nested:
-    - "{{osdnode}}"
     - "{{disks}}"
-  when: ansible_hostname == (ceph_admin) and ceph_cluster_status.stdout == "HEALTH_OK"
+  ignore_errors: yes
+  register: disk_stat
 
-#- name: Removes all data and filesystems from a logical volume or partition
-#  shell: ceph-volume lvm zap {{item}}
-#  args:
-#    creates: /var/lib/ceph/bootstrap-osd/ceph.keyring
-#  with_items:
-#    - "{{disks}}"
-
-- name: create osd
-  shell: ceph-deploy osd create --data {{item[1]}} {{item[0]}}
+- name: MD5 tmposdkey  
+  shell: md5sum ceph.keyring
   args:
-    chdir: "{{ceph_workdir}}"
-  with_nested:
-    - "{{osdnode}}"
+    chdir: /tmp
+  ignore_errors: yes
+  register: tmposdkey
+
+- name: MD5 osdkey
+  shell: md5sum ceph.keyring
+  args:
+    chdir: /var/lib/ceph/bootstrap-osd
+  ignore_errors: yes
+  register: osdkey
+
+- name: Get osd num
+  shell: ceph osd ls-tree {{ansible_hostname}}
+  ignore_errors: yes
+  register: osd_num
+
+- name: Removes all data and filesystems from a logical volume or partition
+  shell: ceph-volume lvm zap {{item[0]}}
+  args:
+    creates: /var/lib/ceph/osd/ceph-{{item[1]}}/keyring
+  with_together:
     - "{{disks}}"
-  when: ansible_hostname == (ceph_admin) and ceph_cluster_status.stdout == "HEALTH_OK"
+    - "{{osd_num.stdout_lines}}"
+  when: disk_stat is succeeded
+  ignore_errors: yes
+  register: info
+
+- name: copy osdkey
+  shell: \cp /tmp/ceph.keyring /var/lib/ceph/bootstrap-osd/
+  when: osd_num.rc != 0 and osdkey.stdout != tmposdkey.stdout
+  ignore_errors: yes
+  register: copykey
+
+- name: create osd 
+  shell: ceph-volume --cluster ceph lvm create --bluestore --data {{item[0]}}
+  when: (item[1].changed) and copykey.rc == 0
+  with_together:
+    - "{{disks}}"
+    - "{{info.results}}"

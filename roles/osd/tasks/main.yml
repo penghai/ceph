@@ -1,6 +1,4 @@
 ---
 # tasks file for roles/osd
 
-#- include: install.yml
-
 - include: config_osd.yml
