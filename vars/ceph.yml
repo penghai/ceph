@@ -1,5 +1,5 @@
 #Set the type of yum source to use (local|aliyun)
-install_yum_mode: aliyun
+install_yum_mode: local
 
 ceph_admin: ph-test01
 ceph_workdir: /root/ceph_cluster

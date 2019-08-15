@@ -18,25 +18,37 @@
 - name: install a self-signed certificate 
   shell: ceph dashboard create-self-signed-cert
   run_once: true
+  ignore_errors: yes
 
 - name: "setting SSL configuration value: {{mgr_https}}"
   shell: ceph config set mgr mgr/dashboard/ssl {{mgr_https}}
   run_once: true
+  ignore_errors: yes
 
 - name: set mgr IP address  
   shell: ceph config set mgr mgr/dashboard/{{ansible_hostname}}/server_addr {{ansible_ssh_host}}
+  ignore_errors: yes
 
 - name: set mgr port
   shell: ceph config set mgr mgr/dashboard/{{ansible_hostname}}/server_port {{mgr_port}}
+  ignore_errors: yes
 
 - name: set mgr ssl port
   shell: ceph config set mgr mgr/dashboard/{{ansible_hostname}}/ssl_server_port {{mgr_port}}
   when: mgr_https == true
+  ignore_errors: yes
   
 - name: add mgr user
   shell: ceph dashboard set-login-credentials {{mgr_user}} {{mgr_password}}
   run_once: true
+  ignore_errors: yes
+
+#- name: restart mgr
+#  shell: ceph mgr module disable dashboard && ceph mgr module enable dashboard
+#  run_once: true
 
 - name: restart mgr
-  shell: ceph mgr module disable dashboard && ceph mgr module enable dashboard
-  run_once: true
+  service:
+    name: ceph-mgr@{{ansible_hostname}}.service
+    state: restarted
+    enabled: yes
