@@ -49,6 +49,7 @@
     block: |
       osd_pool_default_min_size = 2
       osd_pool_default_size = 3
+      mon_allow_pool_delete = true
     state: present
   when: ansible_hostname == (ceph_admin)
   register: changefile
