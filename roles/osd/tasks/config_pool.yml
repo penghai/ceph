@@ -1,0 +1,37 @@
+- name: ceph cluster status
+  shell: ceph health
+  ignore_errors: yes
+  register: ceph_cluster_status
+
+- name: count osd
+  shell: ceph osd ls|wc -l
+  ignore_errors: yes
+  register: count_osd
+  when: ceph_cluster_status.stdout == "HEALTH_OK"
+
+- name: count pgs
+  shell: echo "({{ceph_osd_pgs}}*{{count_osd.stdout}}*{{item.values()[0]["total_data"]}})/{{item.values()[0]["replicated_size"]}}"|bc 
+  with_items: "{{pools}}"
+  ignore_errors: yes
+  register: count_pgs
+  when: ceph_cluster_status.stdout == "HEALTH_OK"
+  run_once: true
+
+- name: copy script file to tmp
+  copy:
+    src: plan_osd_pgs.sh
+    dest: /tmp/plan_osd_pgs.sh
+
+- name: create pool
+  shell: ceph osd pool create {{item[1].values()[0]["name"]}} `bash /tmp/plan_osd_pgs.sh {{item[0].values()[4]}}`
+  with_together:
+    - "{{count_pgs.results}}"
+    - "{{pools}}"
+  run_once: true
+  when: ceph_cluster_status.stdout == "HEALTH_OK"
+
+- name: set pool size
+  shell: ceph osd pool set {{item.values()[0]["name"]}} size {{item.values()[0]["replicated_size"]}} 
+  with_items: "{{pools}}"
+  run_once: true
+  when: ceph_cluster_status.stdout == "HEALTH_OK"
