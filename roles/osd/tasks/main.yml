@@ -2,5 +2,3 @@
 # tasks file for roles/osd
 
 - include: config_osd.yml
-
-- include: config_pool.yml

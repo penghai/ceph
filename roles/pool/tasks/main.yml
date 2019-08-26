@@ -1,0 +1,4 @@
+---
+# tasks file for roles/pool
+
+- include: config_pool.yml

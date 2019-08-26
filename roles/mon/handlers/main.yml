@@ -1,2 +1,8 @@
 ---
 # handlers file for roles/mon
+
+- name: restart ceph-mgr
+  service:
+    name: ceph-mgr.target
+    state: restarted
+    enabled: yes

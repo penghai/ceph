@@ -1,6 +1,11 @@
 - hosts: osd_nodes
-  order: sorted
   vars_files:
     - "vars/ceph.yml"
   roles:
     - role: osd
+
+- hosts: mon_nodes
+  vars_files:
+    - "vars/ceph.yml"
+  roles:
+    - role: pool 

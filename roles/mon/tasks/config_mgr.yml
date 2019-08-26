@@ -10,45 +10,77 @@
     creates: /var/lib/ceph/bootstrap-mgr/ceph.keyring
   when: ansible_hostname == (ceph_admin) and ceph_status.stdout == "HEALTH_OK"
   
+- name: dashboard status
+  shell: ceph mgr module ls |grep -w dashboard|awk -F \" '{print $4}'
+  ignore_errors: yes
+  register: dashboard_status 
+  when: ceph_status.stdout == "HEALTH_OK"
+
 - name: enabled the Ceph Dashboard
   shell: ceph mgr module enable dashboard
-  when: ceph_status.stdout == "HEALTH_OK"
+  when: dashboard_status.stdout == "dashboard"
   run_once: true
 
 - name: install a self-signed certificate 
   shell: ceph dashboard create-self-signed-cert
   run_once: true
   ignore_errors: yes
+  when: ceph_status.stdout == "HEALTH_OK" and mgr_https
+
+- name: ssl status
+  shell: ceph config dump |grep dashboard/ssl|awk '{print $4}'
+  ignore_errors: yes
+  register: ssl_status 
+  when: ceph_status.stdout == "HEALTH_OK"
 
 - name: "setting SSL configuration value: {{mgr_https}}"
   shell: ceph config set mgr mgr/dashboard/ssl {{mgr_https}}
   run_once: true
+  when: (mgr_https) != ssl_status.stdout 
+  notify: restart ceph-mgr
+  
+
+- name: get dashboard server_addr
+  shell: ceph config dump|grep {{ansible_hostname}}/server_addr |awk '{print $4}'
   ignore_errors: yes
+  register: dashboard_server_addr
+  when: ceph_status.stdout == "HEALTH_OK"
 
 - name: set mgr IP address  
   shell: ceph config set mgr mgr/dashboard/{{ansible_hostname}}/server_addr {{ansible_ssh_host}}
+  when: ansible_ssh_host != dashboard_server_addr.stdout
+  notify: restart ceph-mgr
+
+- name: get dashboard server_port
+  shell: ceph config dump|grep {{ansible_hostname}}/server_port |awk '{print $4}'
   ignore_errors: yes
+  register: dashboard_server_port
+  when: ceph_status.stdout == "HEALTH_OK"
 
 - name: set mgr port
   shell: ceph config set mgr mgr/dashboard/{{ansible_hostname}}/server_port {{mgr_port}}
+  when: dashboard_server_port.stdout != (mgr_port) and (mgr_https) == "False"
+  notify: restart ceph-mgr
+
+- name: get dashboard ssl_server_port
+  shell: ceph config dump|grep {{ansible_hostname}}/ssl_server_port |awk '{print $4}'
   ignore_errors: yes
+  register: dashboard_ssl_server_port
+  when: ceph_status.stdout == "HEALTH_OK"
 
 - name: set mgr ssl port
   shell: ceph config set mgr mgr/dashboard/{{ansible_hostname}}/ssl_server_port {{mgr_port}}
-  when: mgr_https == true
-  ignore_errors: yes
+  when: dashboard_ssl_server_port.stdout != mgr_port and (mgr_https) == "True"
+  notify: restart ceph-mgr
   
+- name: get user status
+  shell: ceph config dump|grep username|awk '{print $4}'
+  ignore_errors: yes
+  register: dashboard_username
+  when: ceph_status.stdout == "HEALTH_OK"
+
 - name: add mgr user
   shell: ceph dashboard set-login-credentials {{mgr_user}} {{mgr_password}}
   run_once: true
-  ignore_errors: yes
-
-#- name: restart mgr
-#  shell: ceph mgr module disable dashboard && ceph mgr module enable dashboard
-#  run_once: true
-
-- name: restart mgr
-  service:
-    name: ceph-mgr@{{ansible_hostname}}.service
-    state: restarted
-    enabled: yes
+  when: dashboard_username.stdout != (mgr_user)
+  notify: restart ceph-mgr
