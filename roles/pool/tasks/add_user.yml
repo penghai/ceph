@@ -1,0 +1,46 @@
+- name: ceph cluster status
+  shell: ceph health
+  ignore_errors: yes
+  register: ceph_cluster_status
+
+- name: Create {{ceph_user_keydir}} directory
+  file:
+    path: "{{ceph_user_keydir}}"
+    state: directory
+  run_once: true
+
+- name: get glance user
+  shell: "[[ `ceph auth get-key client.glance` == `cat {{ceph_user_keydir}}/ceph.client.glance.keyring|grep key|awk '{print $3}'` ]]"
+  ignore_errors: yes
+  register: glance  
+  when: ceph_cluster_status.stdout == "HEALTH_OK"
+  run_once: true
+
+- name: create glance user
+  shell: ceph auth get-or-create client.glance mon 'profile rbd' osd 'profile rbd pool={{pools[1].values()[0]["name"]}}' -o {{ceph_user_keydir}}/ceph.client.glance.keyring
+  when: glance.rc != 0
+  run_once: true
+
+- name: get cinder user
+  shell: "[[ `ceph auth get-key client.cinder` == `cat {{ceph_user_keydir}}/ceph.client.cinder.keyring|grep key|awk '{print $3}'` ]]"
+  ignore_errors: yes
+  register: cinder
+  when: ceph_cluster_status.stdout == "HEALTH_OK"
+  run_once: true
+
+- name: create cinder user
+  shell: ceph auth get-or-create client.cinder mon 'profile rbd' osd 'profile rbd pool={{pools[0].values()[0]["name"]}}, profile rbd pool={{pools[3].values()[0]["name"]}}, profile rbd pool={{pools[1].values()[0]["name"]}}' -o {{ceph_user_keydir}}/ceph.client.cinder.keyring
+  when: cinder.rc != 0
+  run_once: true
+
+- name: get cinder-backup user
+  shell: "[[ `ceph auth get-key client.cinder-backup` == `cat {{ceph_user_keydir}}/ceph.client.cinder-backup.keyring|grep key|awk '{print $3}'` ]]"
+  ignore_errors: yes
+  register: cinder_backup
+  when: ceph_cluster_status.stdout == "HEALTH_OK"
+  run_once: true
+
+- name: create cinder-backup user
+  shell: ceph auth get-or-create client.cinder-backup mon 'profile rbd' osd 'profile rbd pool={{pools[3].values()[0]["name"]}}' -o {{ceph_user_keydir}}/ceph.client.cinder-backup.keyring
+  when: cinder_backup.rc != 0
+  run_once: true

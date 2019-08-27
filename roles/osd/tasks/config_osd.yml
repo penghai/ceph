@@ -4,7 +4,7 @@
   register: ceph_cluster_status
 
 - name: copy osdkey to tmp
-  shell: scp {{ceph_admin}}:/{{ceph_workdir}}/ceph.bootstrap-osd.keyring  /tmp/ceph.keyring
+  shell: scp {{ceph_admin}}:/{{ceph_initdir}}/ceph.bootstrap-osd.keyring  /tmp/ceph.keyring
   when: ceph_cluster_status.stdout == "HEALTH_OK"
 
 - name: disk stat

@@ -2,7 +2,7 @@
 install_yum_mode: local
 
 ceph_admin: ph-test01
-ceph_workdir: /root/ceph_cluster
+ceph_initdir: /root/ceph_cluster
 cluster_network: 192.168.68.0/24
 public_network: 172.16.1.0/24
 mons: ph-test01 ph-test02 ph-test03
@@ -31,3 +31,5 @@ pools:
       name: vms
       replicated_size: 2
       total_data: 0.05
+
+ceph_user_keydir: /root/ceph_userkey
