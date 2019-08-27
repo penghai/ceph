@@ -22,22 +22,36 @@
     src: plan_osd_pgs.sh
     dest: /tmp/plan_osd_pgs.sh
 
+- name: get pool
+  shell: ceph osd pool ls|grep -w {{item.values()[0]["name"]}}
+  with_items: "{{pools}}"
+  ignore_errors: yes
+  register: pool_status
+  when: ceph_cluster_status.stdout == "HEALTH_OK"
+  run_once: true
+
 - name: create pool
-  shell: ceph osd pool create {{item[1].values()[0]["name"]}} `bash /tmp/plan_osd_pgs.sh {{item[0].values()[4]}}`
+  shell: ceph osd pool create {{item[1].values()[0]["name"]}} `bash /tmp/plan_osd_pgs.sh {{item[0].values()[4]}}`;
   with_together:
     - "{{count_pgs.results}}"
     - "{{pools}}"
+    - "{{pool_status.results}}"
   run_once: true
-  when: ceph_cluster_status.stdout == "HEALTH_OK"
+  register: info
+  when: ceph_cluster_status.stdout == "HEALTH_OK" and  (item[2].values()[4]) != (item[1].values()[0]["name"])
 
 - name: set pool size
-  shell: ceph osd pool set {{item.values()[0]["name"]}} size {{item.values()[0]["replicated_size"]}} 
-  with_items: "{{pools}}"
+  shell: ceph osd pool set {{item[0].values()[0]["name"]}} size {{item[0].values()[0]["replicated_size"]}} 
+  with_together:
+    - "{{pools}}"
+    - "{{info.results}}"
   run_once: true
-  when: ceph_cluster_status.stdout == "HEALTH_OK"
+  when: ceph_cluster_status.stdout == "HEALTH_OK" and (item[1].changed)
 
 - name: init pool rbd
-  shell: rbd pool init {{item.values()[0]["name"]}} 
-  with_items: "{{pools}}"
+  shell: rbd pool init {{item[0].values()[0]["name"]}} 
+  with_together:
+    - "{{pools}}"
+    - "{{info.results}}"
   run_once: true
-  when: ceph_cluster_status.stdout == "HEALTH_OK"
+  when: ceph_cluster_status.stdout == "HEALTH_OK" and (item[1].changed)
