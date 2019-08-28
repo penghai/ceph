@@ -8,8 +8,8 @@ public_network: 172.16.1.0/24
 mons: ph-test01 ph-test02 ph-test03
 disks: [/dev/sdb,/dev/sdc]
 
-mgr_port: "8443"
-mgr_https: "True"
+mgr_port: "8080"
+mgr_https: "False"
 mgr_user: admin
 mgr_password: admin
 
