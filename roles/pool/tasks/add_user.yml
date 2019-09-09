@@ -9,6 +9,15 @@
     state: directory
   run_once: true
 
+- name: copy user key
+  copy:
+    src: ceph_userkey/
+    dest: "{{ceph_user_keydir}}"
+    owner: root
+    group: root
+    mode: "0644"
+  run_once: true
+
 - name: get glance user
   shell: ceph auth get-key client.glance
   ignore_errors: yes
@@ -17,9 +26,16 @@
   run_once: true
 
 - name: create glance user
-  shell: ceph auth get-or-create client.glance mon 'profile rbd' osd 'profile rbd pool={{pools[1].values()[0]["name"]}}' -o {{ceph_user_keydir}}/ceph.client.glance.keyring
+  shell: ceph auth import -i client.glance
+  args:
+    chdir: "{{ceph_user_keydir}}" 
   when: glance_user.rc != 0
   run_once: true
+  
+#- name: create glance user
+#  shell: ceph auth get-or-create client.glance mon 'profile rbd' osd 'profile rbd pool={{pools[1].values()[0]["name"]}}' -o {{ceph_user_keydir}}/ceph.client.glance.keyring
+#  when: glance_user.rc != 0
+#  run_once: true
 
 - name: get cinder user
   shell: ceph auth get-key client.cinder
@@ -29,9 +45,16 @@
   run_once: true
 
 - name: create cinder user
-  shell: ceph auth get-or-create client.cinder mon 'profile rbd' osd 'profile rbd pool={{pools[0].values()[0]["name"]}}, profile rbd pool={{pools[3].values()[0]["name"]}}, profile rbd pool={{pools[1].values()[0]["name"]}}' -o {{ceph_user_keydir}}/ceph.client.cinder.keyring
+  shell: ceph auth import -i client.cinder
+  args:
+    chdir: "{{ceph_user_keydir}}" 
   when: cinder_user.rc != 0
   run_once: true
+  
+#- name: create cinder user
+#  shell: ceph auth get-or-create client.cinder mon 'profile rbd' osd 'profile rbd pool={{pools[0].values()[0]["name"]}}, profile rbd pool={{pools[3].values()[0]["name"]}}, profile rbd pool={{pools[1].values()[0]["name"]}}' -o {{ceph_user_keydir}}/ceph.client.cinder.keyring
+#  when: cinder_user.rc != 0
+#  run_once: true
 
 - name: get cinder-backup user
   shell: ceph auth get-key client.cinder-backup
@@ -41,6 +64,13 @@
   run_once: true
 
 - name: create cinder-backup user
-  shell: ceph auth get-or-create client.cinder-backup mon 'profile rbd' osd 'profile rbd pool={{pools[3].values()[0]["name"]}}' -o {{ceph_user_keydir}}/ceph.client.cinder-backup.keyring
+  shell: ceph auth import -i client.cinder-backup
+  args:
+    chdir: "{{ceph_user_keydir}}" 
   when: cinder_backup_user.rc != 0
   run_once: true
+
+#- name: create cinder-backup user
+#  shell: ceph auth get-or-create client.cinder-backup mon 'profile rbd' osd 'profile rbd pool={{pools[3].values()[0]["name"]}}' -o {{ceph_user_keydir}}/ceph.client.cinder-backup.keyring
+#  when: cinder_backup_user.rc != 0
+#  run_once: true
