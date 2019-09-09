@@ -1,3 +1,3 @@
-#- import_playbook: install_ceph.yml
-#- import_playbook: install_ceph-mon.yml
+- import_playbook: install_ceph.yml
+- import_playbook: install_ceph-mon.yml
 - import_playbook: install_ceph-osd.yml
