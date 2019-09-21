@@ -21,6 +21,9 @@
   when: dashboard_status.stdout == "dashboard"
   run_once: true
 
+- name: Waiting times for 15s
+  pause: seconds=15
+
 - name: install a self-signed certificate 
   shell: ceph dashboard create-self-signed-cert
   run_once: true
