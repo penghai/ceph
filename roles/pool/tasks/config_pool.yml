@@ -3,6 +3,21 @@
   ignore_errors: yes
   register: ceph_cluster_status
 
+- name: get ceph cluster client version
+  shell: ceph osd get-require-min-compat-client
+  ignore_errors: yes
+  register: ceph_client
+
+- name: set ceph cluster client luminous
+  shell: ceph osd set-require-min-compat-client luminous
+  when: ceph_client.stdout != "luminous"
+
+- name: set ceph balancer mode upmap
+  shell: ceph balancer mode upmap
+
+- name: set ceph balancer on
+  shell: ceph balancer on
+
 - name: count osd
   shell: ceph osd ls|wc -l
   ignore_errors: yes
